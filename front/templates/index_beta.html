@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <title>WMS Analytics Tool</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; line-height: 1.6; }
+        .container { max-width: 600px; margin: 0 auto; border: 1px solid #ccc; padding: 20px; border-radius: 5px; }
+        .status-box { margin-top: 20px; padding: 10px; border: 1px solid #eee; background: #f9f9f9; }
+        .loading { color: #007bff; font-weight: bold; }
+        .result { font-size: 24px; color: #28a745; font-weight: bold; }
+        input { padding: 10px; width: 70%; margin-bottom: 10px; }
+        button { padding: 10px 20px; cursor: pointer; background: #333; color: white; border: none; }
+        button:disabled { background: #ccc; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Raport Tour QL</h2>
+        <p>Wprowadź Tour ID, aby rozpocząć proces scrapowania danych z WMS.</p>
+        
+        <input type="text" id="tourId" placeholder="Wpisz Tour ID (np. T-12345)">
+        <button id="startBtn" onclick="initiateScrape()">Generuj Raport</button>
+
+        <div id="statusBox" class="status-box" style="display:none;">
+            <div id="statusText">Inicjalizacja...</div>
+            <div id="resultValue" class="result"></div>
+        </div>
+    </div>
+
+    <script>
+        let currentTaskId = null;
+        let pollInterval = null;
+
+        async function initiateScrape() {
+            const tourId = document.getElementById('tourId').value;
+            if (!tourId) return alert("Podaj Tour ID");
+
+            // Reset UI
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('statusBox').style.display = 'block';
+            document.getElementById('resultValue').innerText = '';
+            document.getElementById('statusText').className = 'loading';
+            document.getElementById('statusText').innerText = "Trwa przetwarzanie danych... Proszę czekać.";
+
+            const response = await fetch('/start_scrape', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tour_id: tourId })
+            });
+
+            const data = await response.json();
+            currentTaskId = data.task_id;
+
+            // Zacznij odpytywać co 1 sekundę
+            pollInterval = setInterval(checkStatus, 1000);
+        }
+
+        async function checkStatus() {
+            if (!currentTaskId) return;
+
+            const response = await fetch(`/check_status/${currentTaskId}`);
+            const data = await response.json();
+
+            if (data.status === 'completed') {
+                clearInterval(pollInterval);
+                document.getElementById('statusText').innerText = "Przetwarzanie zakończone. Wynik QL Total:";
+                document.getElementById('statusText').className = '';
+                document.getElementById('resultValue').innerText = data.result;
+                document.getElementById('startBtn').disabled = false;
+            } else if (data.status === 'error') {
+                clearInterval(pollInterval);
+                document.getElementById('statusText').innerText = "Błąd: " + data.result;
+                document.getElementById('startBtn').disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>

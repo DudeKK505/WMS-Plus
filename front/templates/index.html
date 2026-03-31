@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WMS Analytics | Ship QL Scraper</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<div class="container">
+    <h2>WMS Ship Scraper</h2>
+    <p>Automatyczne wyliczanie QL dla Tour ID.<br>Narzędzie analityczne dla AM/OM.</p>
+    
+    <div class="input-group">
+        <input type="text" id="tourId" placeholder="Wprowadź Tour ID..." autocomplete="off">
+        <button id="startBtn" onclick="initiateScrape()">Generuj Raport</button>
+    </div>
+
+    <div id="statusBox" class="status-box" style="display:none;">
+        <div id="loadingElement">
+            <div class="loader"></div>
+            <div id="statusText" class="blink">Przetwarzanie danych...</div>
+        </div>
+
+        <div id="resultContainer" style="display:none;">
+            <div id="resultLabel" class="result-label"></div>
+            <div id="resultValue" class="result-value"></div>
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>
