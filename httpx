@@ -1,0 +1,70 @@
+import asyncio
+import httpx
+import re
+from ql_scraper import get_config
+
+async def main_tpt_ql_scrape(client, payload, pattern):
+    try:
+        # Client ma już w sobie cookies i headers z sesji
+        response = await client.post(
+            'https://zalos-lodz-frontend-live.logistics.zalan.do/frontend/rpc/secure/orderManagementService',
+            data=payload,
+            timeout=10.0
+        )
+        
+        if response.status_code == 200:
+            # Tutaj Twoja logika RE
+            data = response.text
+            qls = pattern.findall(data)
+            ql_count = sum(int(ql) for ql in qls if ql.isdigit())
+            return ql_count
+        return 0
+    except Exception as e:
+        print(f"Błąd zapytania: {e}")
+        return 0
+
+async def start_tpt_for_ql_async():
+    # 1. Przygotowanie danych
+    order_count = 21353
+    cookies, headers = get_config()
+    pattern = re.compile(r"(\d+)0\.0")
+    
+    base_payload = '''Twój_Payload_Link''' # wstaw tu oryginał
+    payloady = []
+    
+    for o in range(50, int(order_count) + 50, 50):
+        payloady.append(base_payload.replace("|50|", f"|{o}|"))
+
+    # 2. Inicjalizacja klienta asynchronicznego (odpowiednik Session)
+    # Limit to 50 jednoczesnych połączeń, żeby WMS nas nie zbanował od razu
+    limits = httpx.Limits(max_connections=100, max_keepalive_connections=50)
+    
+    async with httpx.AsyncClient(
+        cookies=cookies, 
+        headers=headers, 
+        limits=limits,
+        verify=False # jeśli WMS ma problemy z certyfikatami
+    ) as client:
+        
+        # 3. Tworzymy listę zadań
+        tasks = [main_tpt_ql_scrape(client, p, pattern) for p in payloady]
+        
+        # 4. Odpalamy "ogień ciągły"
+        print(f"Startujemy 400+ zapytań...")
+        results = await asyncio.gather(*tasks)
+        
+        total_ql = sum(results)
+        print(f"Skończone! Zsumowano QL: {total_ql}")
+        return total_ql
+
+if __name__ == "__main__":
+    # Odpalenie pętli asynchronicznej
+    asyncio.run(start_tpt_for_ql_async())
+
+dodatek:
+
+sem = asyncio.Semaphore(10) # Max 10 zapytań naraz
+
+async def main_tpt_ql_scrape_limited(client, payload, pattern):
+    async with sem:
+        return await main_tpt_ql_scrape(client, payload, pattern)
